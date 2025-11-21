@@ -1,4 +1,6 @@
 
+from google.adk.agents import Agent 
+
 # System / instruction prompt for the Compliance Agent
 COMPLIANCE_TONE_INSTRUCTION = """
 You are the Compliance & Tone Agent for NGO Amazonia.

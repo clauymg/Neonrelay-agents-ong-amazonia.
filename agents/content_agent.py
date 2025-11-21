@@ -1,4 +1,6 @@
 
+from google.adk.agents import Agent 
+
 # System / instruction prompt for the Content Agent
 
 CONTENT_AGENT_INSTRUCTION = """
