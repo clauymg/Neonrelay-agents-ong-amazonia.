@@ -5,6 +5,7 @@ from collections import defaultdict
 from dataclasses import dataclass, asdict
 
 
+
 # Métricas globales simples (in-memory)
 METRICS = {
     "pipelines_total": 0,
