@@ -3,10 +3,12 @@ import time
 import uuid
 from collections import defaultdict
 from dataclasses import dataclass, asdict
+from google.genai import types
 
 
-
-# Métricas globales simples (in-memory)
+# =========================
+# OBSERVABILITY: TRACE + MÉTRICAS
+# =========================
 METRICS = {
     "pipelines_total": 0,
     "pipelines_ok": 0,
@@ -51,7 +53,6 @@ def finish_pipeline_trace(trace: PipelineTrace, status: str, errors: list | None
     if errors:
         trace.errors = errors
 
-    # actualizar métricas agregadas
     if status == "ok":
         METRICS["pipelines_ok"] += 1
     elif status == "needs_human":
@@ -59,25 +60,23 @@ def finish_pipeline_trace(trace: PipelineTrace, status: str, errors: list | None
     else:
         METRICS["pipelines_error"] += 1
 
-    print(f"[OBS] End pipeline trace_id={trace.trace_id} "
-          f"status={status} latency={trace.latency_sec:.3f}s")
-
-    # También podemos imprimir el trace como JSON-friendly dict
+    print(
+        f"[OBS] End pipeline trace_id={trace.trace_id} "
+        f"status={status} latency={trace.latency_sec:.3f}s"
+    )
     print("[OBS] Trace summary:", asdict(trace))
     return trace
 
 
 def summarize_events_by_agent(events):
     """
-    Saca un resumen liviano:
-    - cuántos eventos por agent_name
-    - tipos de eventos
+    Saca un resumen simple de cuántos eventos y tipos por agente.
+    Si ADK no expone agent_name, se verá como 'unknown_agent'.
     """
     summary = defaultdict(lambda: {"events": 0, "event_types": defaultdict(int)})
 
     for e in events:
         event_type = getattr(e, "event_type", "unknown")
-        # Algunos eventos traen agent_name directo, otros se pueden leer via agent.name
         agent_name = getattr(e, "agent_name", None)
         if not agent_name:
             agent_obj = getattr(e, "agent", None)
@@ -86,16 +85,14 @@ def summarize_events_by_agent(events):
         summary[agent_name]["events"] += 1
         summary[agent_name]["event_types"][event_type] += 1
 
-    # Convertir defaultdicts anidados a dicts normales
     clean_summary = {}
+    print("[OBS] Events by agent:")
     for agent_name, data in summary.items():
         clean_summary[agent_name] = {
             "events": data["events"],
             "event_types": dict(data["event_types"]),
         }
-
-    print("[OBS] Events by agent:")
-    for agent_name, data in clean_summary.items():
-        print(f"  - {agent_name}: {data['events']} events, types={data['event_types']}")
+        print(f"  - {agent_name}: {data['events']} events, types={dict(data['event_types'])}")
 
     return clean_summary
+

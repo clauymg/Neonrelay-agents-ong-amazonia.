@@ -1,21 +1,15 @@
 
-import json
+import json 
+from google.genai import types
+import time
 
-from observability.observability_funct import (
-    start_pipeline_trace,
-    finish_pipeline_trace,
-    summarize_events_by_agent,
-    METRICS
-)
-
-
-def extract_json_from_events(events, required_keys=None, step_name=""):
+def extract_json_from_events(events, required_keys=None, step_name: str = ""):
     """
     Recorre TODOS los eventos y parts, intenta extraer JSON.
     - Junta todos los JSON válidos.
     - Si required_keys se pasa, elige el primero que contenga todas esas claves.
     - Si no se pasa, devuelve el primer JSON válido.
-    - Si nada matchea, lanza ValueError.
+    - Si nada matchea, lanza ValueError con info de debug.
     """
     candidates = []
 
@@ -30,7 +24,7 @@ def extract_json_from_events(events, required_keys=None, step_name=""):
             if not text:
                 continue
 
-            # 1) Intento directo
+            # Intento 1: JSON directo
             try:
                 data = json.loads(text)
                 candidates.append(data)
@@ -38,37 +32,36 @@ def extract_json_from_events(events, required_keys=None, step_name=""):
             except json.JSONDecodeError:
                 pass
 
-            # 2) Intento recortando entre primera "{" y última "}"
+            # Intento 2: recorte entre primera y última llave
             start = text.find("{")
             end = text.rfind("}")
             if start != -1 and end != -1 and end > start:
-                candidate = text[start:end+1]
+                sub = text[start:end+1]
                 try:
-                    data = json.loads(candidate)
+                    data = json.loads(sub)
                     candidates.append(data)
                 except json.JSONDecodeError:
-                    continue
+                    pass
 
     if not candidates:
-        raise ValueError(f"[{step_name}] No JSON found at all in events.")
+        raise ValueError(
+            f"[{step_name}] No JSON found in ANY event or part. "
+            f"Revisa el dump de eventos para ver el texto crudo."
+        )
 
-    # Si no hay required_keys → devolvemos el primer JSON válido
-    if required_keys is None:
+    # Sin required_keys → devolvemos el primero
+    if not required_keys:
         return candidates[0]
 
-    # Normalizamos required_keys a set
-    if not isinstance(required_keys, set):
-        required_keys = set(required_keys)
+    required_keys = set(required_keys)
 
-    # Buscamos el primer JSON que tenga todas las claves requeridas
+    # Buscar el primer dict que tenga todas las claves
     for data in candidates:
-        if isinstance(data, dict):
-            if required_keys.issubset(set(data.keys())):
-                return data
+        if isinstance(data, dict) and required_keys.issubset(data.keys()):
+            return data
 
-    # Debug: mostrar qué claves se encontraron realmente
     all_keys = [list(d.keys()) for d in candidates if isinstance(d, dict)]
     raise ValueError(
-        f"[{step_name}] No JSON with required_keys={required_keys} found. "
-        f"Candidate keys: {all_keys}"
+        f"[{step_name}] JSON found, pero NINGUNO tiene todas las claves {required_keys}. "
+        f"Keys encontradas: {all_keys}"
     )
