@@ -1,5 +1,5 @@
-from google.genai import types
 
+from google.genai import types
 
 def dump_event_texts(events, label="DEBUG_EVENTS"):
     print(f"\n[{label}] Dumping event texts:")
